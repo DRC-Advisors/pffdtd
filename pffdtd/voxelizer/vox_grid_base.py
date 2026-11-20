@@ -186,14 +186,11 @@ class VoxGridBase:
             N_tribox_tests_tot = np.sum(N_tribox_tests)
             self.print(f'tribox checks={N_tribox_tests_tot} for {Ntris} tris and {Nvox} vox ({N_tribox_tests_tot/(Nvox*Ntris)*100.0:.2f} %)')
 
-            #cleanup shared memory
-            try: Ntris_vox_shm.close()
-            except BufferError: pass  # numpy views may still hold the buffer (Python >= 3.8)
+            #cleanup shared memory (drop the numpy views first: Python >= 3.8 refuses to close a buffer in use)
+            del Ntris_vox, N_tribox_tests
+            Ntris_vox_shm.close()
             Ntris_vox_shm.unlink()
-
-            try: N_tribox_tests_shm.close()
-
-            except BufferError: pass  # numpy views may still hold the buffer (Python >= 3.8)
+            N_tribox_tests_shm.close()
             N_tribox_tests_shm.unlink()
 
             self.print(f'tris redundant={Ntris_vox_tot}, {100.*Ntris_vox_tot/self.Ntris:.2f} %')
