@@ -16,15 +16,15 @@ import numpy as np
 import json as json
 from pathlib import Path
 from numpy import array as npa
-from common.room_geo import RoomGeo
-from voxelizer.cart_grid import CartGrid
-from voxelizer.vox_grid import VoxGrid
-from voxelizer.vox_scene import VoxScene
-from fdtd.sim_comms import SimComms
-from fdtd.sim_consts import SimConsts
-from fdtd.sim_mats import SimMats
-from fdtd.rotate_sim_data import rotate_sim_data,sort_sim_data,copy_sim_data,fold_fcc_sim_data
-from air_abs.get_air_absorption import get_air_absorption
+from pffdtd.common.room_geo import RoomGeo
+from pffdtd.voxelizer.cart_grid import CartGrid
+from pffdtd.voxelizer.vox_grid import VoxGrid
+from pffdtd.voxelizer.vox_scene import VoxScene
+from pffdtd.fdtd.sim_comms import SimComms
+from pffdtd.fdtd.sim_consts import SimConsts
+from pffdtd.fdtd.sim_mats import SimMats
+from pffdtd.fdtd.rotate_sim_data import rotate_sim_data,sort_sim_data,copy_sim_data,fold_fcc_sim_data
+from pffdtd.air_abs.get_air_absorption import get_air_absorption
 
 def sim_setup(
                 #the following are required but using None default so not positional

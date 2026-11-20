@@ -6,20 +6,19 @@
 #
 # Copyright 2021 Brian Hamilton.
 #
-# File name: test_script_CTK_cart_gpu.py
+# File name: test_script_CTK_cart_viz.py
 #
-# Description: this shows a simple setup with Cartesian scheme, for a single-precision GPU run (<2GB VRAM)
+# Description: this shows a simple setup with Cartesian scheme, for visualization purposes
 #
 ##############################################################################
-
-from sim_setup import sim_setup
+from pffdtd.sim_setup import sim_setup
 
 sim_setup(
     model_json_file='../data/models/CTK_Church/model_export.json',
     mat_folder='../data/materials',
     source_num=1,
-    insig_type='impulse', #for RIR
-    diff_source=True, #for single precision
+    insig_type='dhann30', #for viz
+    diff_source=False,
     mat_files_dict={
                     'AcousticPanel': 'ctk_acoustic_panel.h5',
                     'Altar' : 'ctk_altar.h5',
@@ -30,18 +29,17 @@ sim_setup(
                     'Tile': 'ctk_tile.h5',
                     'Walls': 'ctk_walls.h5',
                     }, #see build_mats.py to set these material impedances from absorption data
-    duration=3.0, #duration in seconds
+    duration=0.1, #duration in seconds
     Tc=20,
     rh=50,
     fcc_flag=False,
-    PPW=10.5, #for 1% phase velocity error at fmax
-    fmax=1400.0,
-    save_folder='../data/sim_data/ctk_cart/gpu', 
-    save_folder_gpu='../data/sim_data/ctk_cart/gpu',
+    PPW=7.5, #for 2% phase velocity error at fmax
+    fmax=500.0,
+    save_folder='../data/sim_data/ctk_cart/viz', #can run python from here
     compress=0,
+    draw_vox=True,
+    draw_backend='mayavi', #will draw 'voxelization' (spheres are active boundary nodes, cubes rigid boundary nodes)
 )
-#then from '../data/sim_data/ctk_cart/gpu' folder, run (relative path for default folder structure):
-#   ../../../../c_cuda/fdtd_main_gpu_single.x
 
-#then post-process with something like:
-# python -m fdtd.process_outputs --data_dir='../data/sim_data/ctk_cart/gpu/' --fcut_lowpass 1400.0 --N_order_lowpass=8 --symmetric --fcut_lowcut 10.0 --N_order_lowcut=4 --save_wav --plot
+#then run with python and 3D visualization:
+#   python3 -m fdtd.sim_fdtd --data_dir='../data/sim_data/ctk_cart/viz' --plot --draw_backend='mayavi' --json_model='../data/models/CTK_Church/model_export.json'

@@ -71,7 +71,14 @@ gpu_double:
 gpu_single:
 	$(NVCC) $(NVCCFLAGS) $(SRC) -o fdtd_main_gpu_single.x -DPRECISION=1 -DUSING_CUDA=true $(CULDFLAGS)
 
-.PHONY: clean
+.PHONY: clean cpu-macos
+
+#macOS CPU build (fork addition): Homebrew `brew install hdf5 libomp`, Apple clang
+BREW ?= $(shell brew --prefix 2>/dev/null)
+cpu-macos:
+	for p in 1 2; do clang -I$(IDIR) -I$(BREW)/opt/hdf5/include -I$(BREW)/opt/libomp/include -O3 -std=c99 -Xpreprocessor -fopenmp $(SRC) -o fdtd_main_cpu_p$$p.x -DPRECISION=$$p -DUSING_CUDA=false -L$(BREW)/opt/libomp/lib -lomp -L$(BREW)/opt/hdf5/lib -lhdf5 -lm; done
+	cp fdtd_main_cpu_p2.x fdtd_main_cpu_double.x; cp fdtd_main_cpu_p1.x fdtd_main_cpu_single.x
+
 
 clean:
 	rm -f *.x

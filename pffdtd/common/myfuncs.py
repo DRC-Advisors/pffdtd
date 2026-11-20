@@ -17,7 +17,7 @@ from numpy import array as npa
 import numpy.linalg as npl
 from numpy import cos,sin,pi
 from typing import Any,Optional
-from common.myasserts import assert_np_array_float, assert_np_array_complex
+from pffdtd.common.myasserts import assert_np_array_float, assert_np_array_complex
 from pathlib import Path
 import struct
 import os
@@ -26,7 +26,7 @@ import hashlib
 import multiprocessing as mp
 import scipy.io.wavfile
 
-EPS = np.finfo(np.float).eps
+EPS = np.finfo(np.float64).eps
 
 def rotmatrix_ax_ang(Rax:Any, Rang:float):
     assert isinstance(Rax,np.ndarray)
@@ -165,7 +165,24 @@ def rel_diff(x0,x1): #relative difference at machine epsilon level
     return (x0-x1)/(2.0**np.floor(np.log2(x0)))
 
 def get_default_nprocs():
+    #multiprocessing here passes nested functions to mp.Process, which needs the 'fork' start method
+    #(Linux, macOS); where fork is unavailable (Windows) run in one process
+    if 'fork' not in mp.get_all_start_methods():
+        return 1
     return max(1,int(0.8*mp.cpu_count()))
+
+def mp_context():
+    return mp.get_context('fork')
+
+_DAT_FOLDER = None
+def get_dat_folder():
+    #one private temp folder per (parent) process, so parallel setups do not collide;
+    #forked children inherit the same path
+    global _DAT_FOLDER
+    if _DAT_FOLDER is None:
+        import tempfile
+        _DAT_FOLDER = tempfile.mkdtemp(prefix='pffdtd_mmap_')
+    return _DAT_FOLDER
 
 #taken from SO, for argparse bool problem
 def str2bool(v:str):

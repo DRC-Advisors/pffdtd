@@ -15,15 +15,15 @@
 
 import numpy as np
 from numpy import array as npa
-from common.timerdict import TimerDict
-from common.tri_box_intersection import tri_box_intersection_vec
-from common.room_geo import RoomGeo
-from common.tris_precompute import tris_precompute
+from pffdtd.common.timerdict import TimerDict
+from pffdtd.common.tri_box_intersection import tri_box_intersection_vec
+from pffdtd.common.room_geo import RoomGeo
+from pffdtd.common.tris_precompute import tris_precompute
 import multiprocessing as mp
-from common.myfuncs import clear_dat_folder,clear_console
-from common.myfuncs import get_default_nprocs
+from pffdtd.common.myfuncs import clear_dat_folder,clear_console,get_dat_folder,mp_context
+from pffdtd.common.myfuncs import get_default_nprocs
 from tqdm import tqdm
-import common.check_version as cv
+import pffdtd.common.check_version as cv
 import time
 
 assert cv.ATLEASTVERSION38 #for shared memory (but project needs 3.9 anyway)
@@ -93,7 +93,7 @@ class VoxGridBase:
             self.nonempty_idx = [0]
         else:
             if Nprocs>1:
-                clear_dat_folder('mmap_dat')
+                clear_dat_folder(get_dat_folder())
 
             #create shared memory
             Ntris_vox_shm = shared_memory.SharedMemory(create=True,size=Nvox*np.dtype(np.int64).itemsize)
@@ -124,7 +124,7 @@ class VoxGridBase:
                     Ntris_vox[vox_idx] = len(tri_idxs_vox)
                     #if not empty, save vox data as file
                     if len(tri_idxs_vox)>0:
-                        np.array(tri_idxs_vox,dtype=np.int64).tofile(f'mmap_dat/vox_{vox_idx}.dat')
+                        np.array(tri_idxs_vox,dtype=np.int64).tofile(f'{get_dat_folder()}/vox_{vox_idx}.dat')
                     pbar.update(1)
 
                 pbar.close()
@@ -157,7 +157,7 @@ class VoxGridBase:
                     vox_idx_lists[cc].append(vox_order[idx])
 
                 for proc_idx in range(Nprocs):
-                    proc = mp.Process(target=process_voxels, args=(vox_idx_lists[proc_idx],proc_idx))
+                    proc = mp_context().Process(target=process_voxels, args=(vox_idx_lists[proc_idx],proc_idx))
                     procs.append(proc)
 
                 for proc_idx in range(Nprocs):
@@ -171,13 +171,13 @@ class VoxGridBase:
                     vox = self.voxels[vox_idx]
                     if Ntris_vox[vox_idx]>0:
                         #now with one process read data from files
-                        vox.tri_idxs = np.fromfile(f'mmap_dat/vox_{vox_idx}.dat',dtype=np.int64)
+                        vox.tri_idxs = np.fromfile(f'{get_dat_folder()}/vox_{vox_idx}.dat',dtype=np.int64)
                         vox.tris_pre = self.tris_pre[vox.tri_idxs]
                         vox.tris_mat = self.mats[vox.tri_idxs]
                         assert Ntris_vox[vox_idx] == len(vox.tri_idxs)
                         self.nonempty_idx.append(vox_idx)
 
-                clear_dat_folder('mmap_dat')
+                clear_dat_folder(get_dat_folder())
 
             self.print(self.timer.ftoc('voxgrid fill'))
 
@@ -187,10 +187,13 @@ class VoxGridBase:
             self.print(f'tribox checks={N_tribox_tests_tot} for {Ntris} tris and {Nvox} vox ({N_tribox_tests_tot/(Nvox*Ntris)*100.0:.2f} %)')
 
             #cleanup shared memory
-            Ntris_vox_shm.close()
+            try: Ntris_vox_shm.close()
+            except BufferError: pass  # numpy views may still hold the buffer (Python >= 3.8)
             Ntris_vox_shm.unlink()
 
-            N_tribox_tests_shm.close()
+            try: N_tribox_tests_shm.close()
+
+            except BufferError: pass  # numpy views may still hold the buffer (Python >= 3.8)
             N_tribox_tests_shm.unlink()
 
             self.print(f'tris redundant={Ntris_vox_tot}, {100.*Ntris_vox_tot/self.Ntris:.2f} %')
@@ -205,7 +208,7 @@ class VoxGridBase:
 
     #draws non-empty boxes only
     def draw_boxes(self,tube_radius,backend='mayavi'):
-        from common.box import Box
+        from pffdtd.common.box import Box
         Nvox = self.Nvox
         self.print('drawing boxes..')
         boxtris = np.zeros((Nvox*12,3)) 

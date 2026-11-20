@@ -34,16 +34,16 @@
 
 import numpy as np
 from numpy import array as npa
-from common.room_geo import RoomGeo
-from common.timerdict import TimerDict
-from common.tri_ray_intersection import tri_ray_intersection_vec
-from common.tri_box_intersection import tri_box_intersection_vec
-from voxelizer.cart_grid import CartGrid
-from voxelizer.vox_grid import VoxGrid
-from common.myfuncs import clear_dat_folder
-from common.myfuncs import yes_or_no,ind2sub3d
-from common.myfuncs import dotv
-from common.myfuncs import get_default_nprocs
+from pffdtd.common.room_geo import RoomGeo
+from pffdtd.common.timerdict import TimerDict
+from pffdtd.common.tri_ray_intersection import tri_ray_intersection_vec
+from pffdtd.common.tri_box_intersection import tri_box_intersection_vec
+from pffdtd.voxelizer.cart_grid import CartGrid
+from pffdtd.voxelizer.vox_grid import VoxGrid
+from pffdtd.common.myfuncs import clear_dat_folder,get_dat_folder,mp_context
+from pffdtd.common.myfuncs import yes_or_no,ind2sub3d
+from pffdtd.common.myfuncs import dotv
+from pffdtd.common.myfuncs import get_default_nprocs
 from pathlib import Path
 import numba as nb
 import sys
@@ -54,11 +54,14 @@ import psutil
 import multiprocessing as mp
 from multiprocessing import shared_memory
 from tqdm import tqdm
-from memory_profiler import profile as memory_profile
+try:
+    from memory_profiler import profile as memory_profile
+except ImportError:  # optional
+    def memory_profile(fn): return fn
 
 F_EPS = np.finfo(np.float64).eps
 R_EPS = 1e-6 #relative eps (to grid spacing) for near hits
-DAT_FOLDER = 'mmap_dat' #change as needed
+
 
 class VoxScene:
     def __init__(self,room_geo=None,cart_grid=None,vox_grid=None,fcc=False):
@@ -141,7 +144,7 @@ class VoxScene:
             if not yes_or_no('continue?'):
                 raise Exception('cancelled')
 
-        clear_dat_folder(DAT_FOLDER)
+        clear_dat_folder(get_dat_folder())
 
         #this is main function called by mp
         def process_voxel(idx,proc_idx):
@@ -272,7 +275,7 @@ class VoxScene:
             bn_ixyz_loc_vox = qq
 
             #store vox info on disk (variable size, can't use shared mem), no compression for speed
-            h5f_vox = h5py.File(Path(DAT_FOLDER) / Path(f'vox_data_{vox.idx}.h5'),'w')
+            h5f_vox = h5py.File(Path(get_dat_folder()) / Path(f'vox_data_{vox.idx}.h5'),'w')
             h5f_vox.create_dataset('adj_bn', data=adj_bn_vox)
             h5f_vox.create_dataset('tidx_bn', data=tidx_bn_vox)
             h5f_vox.create_dataset('ndist_bn', data=ndist_bn_vox)
@@ -304,7 +307,7 @@ class VoxScene:
 
             for proc_idx in range(Nprocs):
                 idx_list = idx_lists[proc_idx]
-                proc = mp.Process(target=process_voxels, args=(idx_list,proc_idx))
+                proc = mp_context().Process(target=process_voxels, args=(idx_list,proc_idx))
                 procs.append(proc)
 
             for proc_idx in range(Nprocs):
@@ -322,7 +325,8 @@ class VoxScene:
         self.print(f'{Nbt=}')
 
         #clean up shared memory
-        Nb_proc_shm.close()
+        try: Nb_proc_shm.close()
+        except BufferError: pass  # numpy views may still hold the buffer (Python >= 3.8)
         Nb_proc_shm.unlink()
         #self.print(f'unlink')
 
@@ -346,7 +350,7 @@ class VoxScene:
                 continue
 
             #extract boundary points only
-            h5f_vox = h5py.File(Path(DAT_FOLDER) / Path(f'vox_data_{vox.idx}.h5'),'r')
+            h5f_vox = h5py.File(Path(get_dat_folder()) / Path(f'vox_data_{vox.idx}.h5'),'r')
             adj_bn_vox = h5f_vox['adj_bn'][...]
             tidx_bn_vox = h5f_vox['tidx_bn'][...]
             ndist_bn_vox = h5f_vox['ndist_bn'][...]
@@ -384,7 +388,7 @@ class VoxScene:
 
         self.print(self.timer.ftoc('merge'))
 
-        clear_dat_folder(DAT_FOLDER)
+        clear_dat_folder(get_dat_folder())
 
         #surface area corrections (effective cell surface seen by walls)
         self.print('materials (+sides)...')
@@ -510,14 +514,14 @@ class VoxScene:
         #numba has no problem with memmap'd arrays
         if self.fcc:
             #FCC uses int16
-            adj_full = np.memmap(Path(DAT_FOLDER) / Path('adj_check.dat'), dtype='uint16', mode='w+', shape=(Nx,Ny,Nz))
+            adj_full = np.memmap(Path(get_dat_folder()) / Path('adj_check.dat'), dtype='uint16', mode='w+', shape=(Nx,Ny,Nz))
             self.print('filling full adj map (16-bit compressed)...')
             adj_full[:] = ~np.uint16(0)
             nb_fill_adj_fcc(bn_ixyz,adj_bn,adj_full)
             self.print('check...')
             nb_check_adj_full_fcc(adj_full,Nx,Ny,Nz)
         else:
-            adj_full = np.memmap(Path(DAT_FOLDER) / Path('adj_check.dat'), dtype='uint8', mode='w+', shape=(Nx,Ny,Nz))
+            adj_full = np.memmap(Path(get_dat_folder()) / Path('adj_check.dat'), dtype='uint8', mode='w+', shape=(Nx,Ny,Nz))
             self.print('filling full adj map (8-bit compressed)...')
             adj_full[:] = ~np.uint8(0)
             nb_fill_adj(bn_ixyz,adj_bn,adj_full)
@@ -525,7 +529,7 @@ class VoxScene:
             nb_check_adj_full(adj_full,Nx,Ny,Nz)
 
         del adj_full #release mmap
-        clear_dat_folder(DAT_FOLDER)
+        clear_dat_folder(get_dat_folder())
         self.print(self.timer.ftoc('check_full'))
 
     def draw(self,backend='mayavi'):

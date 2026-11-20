@@ -15,7 +15,7 @@
 import numpy as np
 from pathlib import Path
 from numpy import array as npa
-from materials.adm_funcs import *
+from pffdtd.materials.adm_funcs import *
 
 plot=False #set to True to see fits, but have to close plots to proceed to next material
 write_folder = Path('../data/materials')

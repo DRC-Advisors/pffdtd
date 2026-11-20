@@ -1,3 +1,11 @@
+> **DRC-Advisors fork** (for the De-bleed project). Changes against upstream `bsxfun/pffdtd@aa319f6`:
+> - `python/` is now the importable package `pffdtd` (`pip install git+https://github.com/DRC-Advisors/pffdtd`); imports are `pffdtd.common`, `pffdtd.sim_setup`, ...
+> - runs with current NumPy (`np.float` removed) and Python ≥ 3.8 shared-memory rules;
+> - voxelizer temp files go to a private temp folder per process (parallel setups no longer collide on `mmap_dat/`);
+> - multiprocessing uses the `fork` context explicitly; where it does not exist (Windows) voxelization runs in one process;
+> - `memory_profiler` is optional; `make cpu-macos` builds the CPU engine with Apple clang + Homebrew `hdf5`, `libomp`.
+> Upstream licence (MIT) unchanged.
+
 # PFFDTD (pretty fast FDTD)
 
 ![PFFDTD Screenshot](https://github.com/bsxfun/pffdtd/raw/main/screenshot.png)

@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pffdtd"
+version = "0.1.0+drc1"
+description = "PFFDTD (Brian Hamilton), packaged fork: importable as `pffdtd`, modern NumPy, macOS CPU build"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = ["numpy", "scipy", "numba", "h5py", "tqdm", "psutil", "resampy", "matplotlib"]
+
+[tool.setuptools.packages.find]
+include = ["pffdtd*"]
